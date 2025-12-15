@@ -1,83 +1,143 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useState } from "react";
 
 export default function TransferPage() {
-  const [step, setStep] = useState(1); // 1 = Formulaire, 2 = Confirmation
+  // Etape 1: Formulaire | Etape 2: Loader | Etape 3: Succès
+  const [step, setStep] = useState(1); 
+  const [amount, setAmount] = useState("");
+  const [beneficiary, setBeneficiary] = useState("");
+
+  const handleTransfer = () => {
+    // On passe à l'étape de chargement
+    setStep(2);
+
+    // On simule un traitement de 3 secondes avant d'afficher le succès
+    setTimeout(() => {
+      setStep(3);
+    }, 3000);
+  };
 
   return (
     <div className="min-h-screen bg-[#F4F4F4] font-sans text-gray-800">
       
-      {/* Header Simple */}
-      <header className="bg-white p-4 border-b border-gray-200 flex items-center gap-4">
+      {/* Header */}
+      <header className="bg-white p-4 border-b border-gray-200 flex items-center gap-4 shadow-sm">
         <Link href="/dashboard" className="text-gray-500 hover:bg-gray-100 p-2 rounded-full transition">
           ← Retour
         </Link>
-        <h1 className="font-bold text-lg">Nouveau virement</h1>
+        <h1 className="font-bold text-lg text-bnp-dark">Nouveau virement</h1>
       </header>
 
-      <main className="max-w-2xl mx-auto p-4 md:p-8">
+      <main className="max-w-xl mx-auto p-4 md:p-8 mt-6">
         
-        {step === 1 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8 space-y-6">
-            <h2 className="text-2xl font-bold text-bnp-green mb-6">Saisir les détails</h2>
+        {/* ETAPE 1 : FORMULAIRE */}
+        {step === 1 && (
+          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-6 md:p-8 space-y-6 animate-fade-in">
+            <h2 className="text-2xl font-bold text-bnp-green mb-6 border-b pb-4">Saisir les détails</h2>
             
             {/* Compte source */}
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Depuis le compte</label>
-              <select className="w-full border border-gray-300 rounded-lg p-3 bg-gray-50 focus:ring-2 focus:ring-bnp-green outline-none">
-                <option>Compte à vue Comfort Pack - ...5678 (1 000 000,00 €)</option>
-              </select>
-            </div>
+<div>
+  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Compte à débiter</label>
+  <div className="border border-gray-300 rounded-lg p-3 bg-gray-50 flex justify-between items-center">
+     <div>
+        <div className="font-bold text-gray-800">Compte à vue Comfort Pack</div>
+        {/* On met le même IBAN que sur le dashboard */}
+        <div className="text-xs text-gray-500">BE68 7340 1928 4571</div>
+     </div>
+     <div className="font-bold text-gray-700">1 000 000,00 €</div>
+  </div>
+</div>
 
             {/* Bénéficiaire */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">Nom du bénéficiaire</label>
-              <input type="text" placeholder="Ex: Jean Dupont" className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-bnp-green outline-none" />
+              <input 
+                type="text" 
+                placeholder="Ex: Jean Dupont" 
+                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-bnp-green outline-none transition"
+                value={beneficiary}
+                onChange={(e) => setBeneficiary(e.target.value)}
+              />
             </div>
 
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">IBAN du bénéficiaire</label>
-              <input type="text" placeholder="BE00 0000 0000 0000" className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-bnp-green outline-none font-mono" />
+              <input type="text" placeholder="BE00 0000 0000 0000" className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-bnp-green outline-none font-mono uppercase" />
             </div>
 
             {/* Montant */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-2">Montant (€)</label>
-              <input type="number" placeholder="0.00" className="w-full border border-gray-300 rounded-lg p-3 text-xl font-bold focus:ring-2 focus:ring-bnp-green outline-none" />
+              <input 
+                type="number" 
+                placeholder="0.00" 
+                className="w-full border border-gray-300 rounded-lg p-3 text-xl font-bold focus:ring-2 focus:ring-bnp-green outline-none"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
             </div>
 
             {/* Communication */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2">Communication (Optionnel)</label>
-              <input type="text" placeholder="Ex: Loyer Janvier" className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-bnp-green outline-none" />
+              <label className="block text-sm font-bold text-gray-700 mb-2">Communication</label>
+              <input type="text" placeholder="Ex: Loyer" className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-bnp-green outline-none" />
             </div>
 
             <button 
-              onClick={() => setStep(2)}
-              className="w-full bg-bnp-green text-white font-bold py-4 rounded-lg hover:bg-[#007A50] transition shadow-md mt-4"
+              onClick={handleTransfer}
+              disabled={!amount || !beneficiary}
+              className={`w-full text-white font-bold py-4 rounded-lg shadow-md mt-4 transition ${!amount || !beneficiary ? 'bg-gray-300 cursor-not-allowed' : 'bg-bnp-green hover:bg-[#007A50]'}`}
             >
-              Suivant
+              Signer et valider
             </button>
           </div>
-        ) : (
-          /* ECRAN DE CONFIRMATION */
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center space-y-6 animate-fade-in">
-             <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-3xl mb-4">
+        )}
+
+        {/* ETAPE 2 : LOADER (Traitement) */}
+        {step === 2 && (
+          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
+             {/* Spinner animé */}
+             <div className="w-16 h-16 border-4 border-gray-200 border-t-bnp-green rounded-full animate-spin mb-6"></div>
+             <h2 className="text-xl font-bold text-gray-800">Traitement en cours...</h2>
+             <p className="text-gray-500 mt-2">Nous sécurisons votre transaction.</p>
+             <p className="text-xs text-gray-400 mt-8">Ne fermez pas cette fenêtre.</p>
+          </div>
+        )}
+
+        {/* ETAPE 3 : SUCCÈS */}
+        {step === 3 && (
+          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-8 text-center space-y-6 animate-scale-in">
+             <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto text-4xl mb-4 shadow-sm">
                ✓
              </div>
-             <h2 className="text-2xl font-bold text-gray-800">Virement signé !</h2>
-             <p className="text-gray-600">Votre virement a bien été enregistré. Il sera traité dans les plus brefs délais.</p>
              
-             <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-500 mt-6">
-                Ref: 4930-5839-2029
+             <div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">Virement envoyé !</h2>
+                <p className="text-gray-600 text-lg">
+                    Vous avez envoyé <span className="font-bold">{amount} €</span> à <span className="font-bold">{beneficiary}</span>.
+                </p>
+             </div>
+             
+             {/* Notification Email */}
+             <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg text-left flex items-start gap-3">
+                <span className="text-xl">📧</span>
+                <div>
+                    <p className="text-sm font-bold text-blue-800">Confirmation envoyée</p>
+                    <p className="text-xs text-blue-600 mt-1">
+                        Un e-mail récapitulatif a été envoyé instantanément à <span className="font-bold underline">Koalajuju92@outlook.fr</span>.
+                    </p>
+                </div>
+             </div>
+
+             <div className="bg-gray-50 p-4 rounded-lg text-xs text-gray-500 font-mono mt-4">
+                ID Transaction: TRX-{Math.floor(Math.random() * 100000000)}
              </div>
 
              <Link href="/dashboard" className="block">
                 <button className="w-full bg-gray-800 text-white font-bold py-3 rounded-lg hover:bg-black transition mt-6">
-                  Retour aux comptes
+                  Retour à mes comptes
                 </button>
              </Link>
           </div>
