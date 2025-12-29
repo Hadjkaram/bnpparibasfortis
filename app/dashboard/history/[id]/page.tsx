@@ -10,34 +10,38 @@ export default function TransactionDetailPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. On récupère l'ID depuis l'URL
     const id = params.id;
 
-    // 2. On définit la transaction par défaut (Brinks)
+    // 1. Transaction par défaut (Brinks)
     const defaultTx = { 
       id: 1, 
       merchant: "Virement BRINKS BANK", 
       amount: 1000000.00, 
       type: "credit", 
       date: "15 Déc",
-      iban: "BE98 7364 9988 1122" // Faux IBAN pour Brinks
+      iban: "BE98 7364 9988 1122"
     };
 
-    // 3. Si c'est la transaction par défaut
     if (Number(id) === 1) {
       setTx(defaultTx);
       setLoading(false);
       return;
     }
 
-    // 4. Sinon, on cherche dans le LocalStorage (tes virements)
+    // 2. Recherche dans l'historique
     const savedHistory = localStorage.getItem("bnp_history");
     if (savedHistory) {
       const history = JSON.parse(savedHistory);
-      // On cherche la transaction qui a le même ID
       const found = history.find((item: any) => item.id.toString() === id);
       
       if (found) {
+        // --- PATCH SPÉCIAL : Si c'est Angélique, on met le vrai IBAN FR ---
+        if (found.merchant.toUpperCase().includes("ANGELIQUE") || found.merchant.toUpperCase().includes("CHENEAU")) {
+            found.iban = "FR76 1551 9390 1900 0202 0670 249";
+            found.merchant = "ANGELIQUE CHENEAU"; // On force le nom propre aussi
+        }
+        // ------------------------------------------------------------------
+        
         setTx(found);
       }
     }
@@ -79,16 +83,24 @@ export default function TransactionDetailPage() {
           
           <div className="flex justify-between items-center">
             <span className="text-gray-500 text-sm">Contrepartie</span>
-            <span className="font-bold text-gray-800">{tx.merchant}</span>
+            <span className="font-bold text-gray-800 uppercase">{tx.merchant}</span>
           </div>
 
           <div className="flex justify-between items-center">
              <span className="text-gray-500 text-sm">Compte bénéficiaire</span>
-             {/* Si on n'a pas l'IBAN (car pas sauvegardé avant), on en génère un masqué crédible */}
-             <span className="font-mono text-sm text-gray-700 bg-gray-50 px-2 py-1 rounded">
+             {/* Ici on affiche l'IBAN s'il existe, sinon le masqué par défaut */}
+             <span className="font-mono text-sm text-gray-700 bg-gray-50 px-2 py-1 rounded select-all">
                {tx.iban || "BE** **** **** 9023"}
              </span>
           </div>
+          
+          {/* On ajoute le BIC si c'est un IBAN FR */}
+          {tx.iban && tx.iban.startsWith("FR") && (
+            <div className="flex justify-between items-center">
+                <span className="text-gray-500 text-sm">Code BIC</span>
+                <span className="font-mono text-sm text-gray-700">CMCIFR2A</span>
+            </div>
+          )}
 
           <div className="flex justify-between items-center">
              <span className="text-gray-500 text-sm">Statut</span>
