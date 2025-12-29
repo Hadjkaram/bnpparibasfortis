@@ -17,15 +17,14 @@ export default function Dashboard() {
   const [dateStr, setDateStr] = useState("");
   const [shortDate, setShortDate] = useState("");
 
-  // ÉTATS DYNAMIQUES (Le plus important pour la mise à jour)
-  const [balance, setBalance] = useState(1000000.00); // Solde initial
-  const [transactions, setTransactions] = useState<any[]>(DEFAULT_TRANSACTIONS); // Historique initial
+  // ÉTATS DYNAMIQUES
+  const [balance, setBalance] = useState(1000000.00); 
+  const [transactions, setTransactions] = useState<any[]>(DEFAULT_TRANSACTIONS); 
 
-  // Au chargement de la page : Calcul des dates + Récupération des données bancaires
   useEffect(() => {
     const now = new Date();
     
-    // 1. Gestion des dates (Ton code existant)
+    // 1. Gestion des dates
     const optionsFull: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' };
     setDateStr(now.toLocaleDateString('fr-FR', optionsFull));
 
@@ -33,21 +32,28 @@ export default function Dashboard() {
     const short = now.toLocaleDateString('fr-FR', optionsShort).replace('.', '');
     setShortDate(short.charAt(0).toUpperCase() + short.slice(1));
 
-    // 2. Récupération du SOLDE depuis le stockage (LocalStorage)
+    // 2. Récupération du SOLDE
     const savedBalance = localStorage.getItem("bnp_balance");
     if (savedBalance) {
       setBalance(parseFloat(savedBalance));
     }
 
-    // 3. Récupération de l'HISTORIQUE depuis le stockage
+    // 3. Récupération de l'HISTORIQUE
     const savedHistory = localStorage.getItem("bnp_history");
     if (savedHistory) {
       const parsedHistory = JSON.parse(savedHistory);
-      // On combine l'historique sauvegardé avec la transaction par défaut (Brinks)
-      // Note : On s'assure que la transaction par défaut est à la fin ou fusionnée correctement
       setTransactions([...parsedHistory, ...DEFAULT_TRANSACTIONS]);
     }
   }, []);
+
+  // --- FONCTION POUR EFFACER L'HISTORIQUE (RESET) ---
+  const handleReset = () => {
+    if (confirm("Voulez-vous vraiment effacer l'historique et remettre le solde à 1 000 000 € ?")) {
+      localStorage.removeItem("bnp_balance");
+      localStorage.removeItem("bnp_history");
+      window.location.reload(); // On recharge la page pour voir le changement
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F4F4F4] flex font-sans text-gray-800">
@@ -63,7 +69,6 @@ export default function Dashboard() {
       {/* 1. SIDEBAR (Menu Gauche) */}
       <aside className={`fixed inset-y-0 left-0 bg-white w-72 border-r border-gray-200 transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 transition-transform duration-300 ease-in-out z-50 flex flex-col`}>
         
-        {/* Header Sidebar Mobile */}
         <div className="flex justify-between items-center p-4 md:justify-center border-b border-gray-100">
            <Link href="/" className="flex justify-center w-full">
              <Image src="/bnp.png" alt="BNP Logo" width={140} height={40} className="h-8 w-auto object-contain" />
@@ -105,13 +110,20 @@ export default function Dashboard() {
           <Link href="/login" className="flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition text-sm font-medium">
             <span>🚪</span> Se déconnecter
           </Link>
+          
+          {/* NOUVEAU BOUTON : RESET */}
+          <button 
+            onClick={handleReset}
+            className="w-full mt-4 text-[10px] text-gray-400 hover:text-red-500 font-bold flex items-center justify-center gap-2 px-4 py-2 uppercase tracking-widest transition"
+          >
+             🔄 Réinitialiser la démo
+          </button>
         </div>
       </aside>
 
       {/* 2. CONTENU PRINCIPAL */}
       <main className="flex-1 md:ml-72 p-4 md:p-8 overflow-y-auto h-screen relative">
         
-        {/* Top Bar Mobile */}
         <div className="md:hidden flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow-sm sticky top-0 z-30">
           <Image src="/bnp.png" alt="Logo" width={100} height={30} className="h-6 w-auto" />
           <button onClick={() => setSidebarOpen(true)} className="text-2xl text-bnp-green">☰</button>
@@ -156,7 +168,6 @@ export default function Dashboard() {
                             <p className="text-gray-400 text-xs md:text-sm font-mono mt-1 tracking-wide">BE68 7340 1928 4571</p>
                         </div>
                         <div className="text-right">
-                            {/* AFFICHAGE DU SOLDE 'balance' (État React) */}
                             <span className={`text-2xl md:text-3xl font-bold text-gray-800 block ${hideAmounts ? "blur-md select-none" : ""}`}>
                                 {balance.toLocaleString('fr-BE', { minimumFractionDigits: 2 })} <span className="text-base text-gray-500">€</span>
                             </span>
@@ -198,7 +209,7 @@ export default function Dashboard() {
                 </div>
              </div>
 
-             {/* COLONNE DROITE : Historique (DYNAMIQUE) */}
+             {/* COLONNE DROITE : Historique (DYNAMIQUE + CLIQUABLE) */}
              <div className="space-y-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
                     <div className="flex justify-between items-center mb-6">
@@ -207,29 +218,30 @@ export default function Dashboard() {
                     </div>
 
                     <div className="space-y-0">
-                    {/* Boucle sur les transactions dynamiques */}
+                    {/* LIEN VERS LA PAGE DETAIL */}
                     {transactions.map((tx, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-4 border-b border-gray-50 hover:bg-gray-50 px-2 -mx-2 transition rounded border-0">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm border ${tx.type === 'debit' ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-green-50 border-green-100 text-green-600'}`}>
-                                {tx.type === 'debit' ? '↗' : '💰'}
+                        <Link key={idx} href={`/dashboard/history/${tx.id}`}>
+                            <div className="flex justify-between items-center py-4 border-b border-gray-50 hover:bg-gray-50 px-2 -mx-2 transition rounded border-0 cursor-pointer group">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm border ${tx.type === 'debit' ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-green-50 border-green-100 text-green-600'}`}>
+                                    {tx.type === 'debit' ? '↗' : '💰'}
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-sm text-gray-800 line-clamp-1 group-hover:text-bnp-green transition">{tx.merchant}</p>
+                                        <p className="text-[11px] text-gray-400 font-medium">
+                                            {tx.date === "15 Déc" ? shortDate : tx.date}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="font-bold text-sm text-gray-800 line-clamp-1">{tx.merchant}</p>
-                                    <p className="text-[11px] text-gray-400 font-medium">
-                                        {tx.date === "15 Déc" ? shortDate : tx.date}
-                                    </p>
-                                </div>
+                                <span className={`font-bold text-sm whitespace-nowrap ${tx.type === 'debit' ? 'text-gray-900' : 'text-green-600'} ${hideAmounts ? "blur-sm" : ""}`}>
+                                    {tx.type === 'debit' ? '-' : '+'} {tx.amount.toLocaleString('fr-BE')} €
+                                </span>
                             </div>
-                            <span className={`font-bold text-sm whitespace-nowrap ${tx.type === 'debit' ? 'text-gray-900' : 'text-green-600'} ${hideAmounts ? "blur-sm" : ""}`}>
-                                {tx.type === 'debit' ? '-' : '+'} {tx.amount.toLocaleString('fr-BE')} €
-                            </span>
-                        </div>
+                        </Link>
                     ))}
                     </div>
                 </div>
                 
-                {/* Widget Contact */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 text-center">
                     <div className="w-12 h-12 bg-green-50 text-bnp-green rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
                         📞
