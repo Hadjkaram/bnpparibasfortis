@@ -4,49 +4,49 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-// On définit les données initiales (les dates seront mises à jour dynamiquement)
-const INITIAL_TRANSACTIONS = [
-  { id: 1, merchant: "Virement BRINKS BANK", amount: 1000000.00, type: "credit" },
-];
-
-const ACCOUNTS = [
-  { 
-    id: 1, 
-    type: "Compte à vue Comfort Pack", 
-    iban: "BE68 7340 1928 4571", 
-    balance: 1000000.00, 
-    currency: "EUR" 
-  },
-  { 
-    id: 2, 
-    type: "Compte d'épargne Premium", 
-    iban: "BE14 9823 4510 6629", 
-    balance: 0.00, 
-    currency: "EUR" 
-  },
+// Données de base (si aucun virement n'a encore été fait)
+const DEFAULT_TRANSACTIONS = [
+  { id: 1, merchant: "Virement BRINKS BANK", amount: 1000000.00, type: "credit", date: "15 Déc" },
 ];
 
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [hideAmounts, setHideAmounts] = useState(false);
   
-  // États pour les dates dynamiques
-  const [dateStr, setDateStr] = useState("");      // Pour "Situation au..."
-  const [shortDate, setShortDate] = useState("");  // Pour l'historique "15 Déc"
+  // États pour les dates
+  const [dateStr, setDateStr] = useState("");
+  const [shortDate, setShortDate] = useState("");
 
-  // Au chargement de la page, on calcule la date du jour
+  // ÉTATS DYNAMIQUES (Le plus important pour la mise à jour)
+  const [balance, setBalance] = useState(1000000.00); // Solde initial
+  const [transactions, setTransactions] = useState<any[]>(DEFAULT_TRANSACTIONS); // Historique initial
+
+  // Au chargement de la page : Calcul des dates + Récupération des données bancaires
   useEffect(() => {
     const now = new Date();
     
-    // Format complet : "16 décembre"
+    // 1. Gestion des dates (Ton code existant)
     const optionsFull: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long' };
     setDateStr(now.toLocaleDateString('fr-FR', optionsFull));
 
-    // Format court : "16 Déc" (pour les transactions)
     const optionsShort: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
-    // On met la première lettre du mois en majuscule manuellement pour faire joli
     const short = now.toLocaleDateString('fr-FR', optionsShort).replace('.', '');
     setShortDate(short.charAt(0).toUpperCase() + short.slice(1));
+
+    // 2. Récupération du SOLDE depuis le stockage (LocalStorage)
+    const savedBalance = localStorage.getItem("bnp_balance");
+    if (savedBalance) {
+      setBalance(parseFloat(savedBalance));
+    }
+
+    // 3. Récupération de l'HISTORIQUE depuis le stockage
+    const savedHistory = localStorage.getItem("bnp_history");
+    if (savedHistory) {
+      const parsedHistory = JSON.parse(savedHistory);
+      // On combine l'historique sauvegardé avec la transaction par défaut (Brinks)
+      // Note : On s'assure que la transaction par défaut est à la fin ou fusionnée correctement
+      setTransactions([...parsedHistory, ...DEFAULT_TRANSACTIONS]);
+    }
   }, []);
 
   return (
@@ -120,9 +120,8 @@ export default function Dashboard() {
         <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Bonjour, Julien FERRET</h1>
-            {/* DATE DYNAMIQUE ICI */}
             <p className="text-gray-500 text-sm mt-1">
-              {dateStr ? `Situation au ${dateStr}.` : "Chargement de la date..."}
+              {dateStr ? `Situation au ${dateStr}.` : "Chargement..."}
             </p>
           </div>
           
@@ -147,27 +146,44 @@ export default function Dashboard() {
              
              {/* COLONNE GAUCHE : Comptes */}
              <div className="lg:col-span-2 space-y-6">
-                {ACCOUNTS.map((account) => (
-                <div key={account.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition cursor-pointer group">
+                
+                {/* 1. Compte Principal (DYNAMIQUE) */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition cursor-pointer group">
                     <div className="p-6 flex justify-between items-start relative">
-                    <div className="absolute left-0 top-4 bottom-4 w-1 bg-bnp-green rounded-r-full"></div>
-                    <div className="pl-4">
-                        <h3 className="font-bold text-lg text-bnp-green group-hover:underline decoration-2 underline-offset-4">{account.type}</h3>
-                        <p className="text-gray-400 text-xs md:text-sm font-mono mt-1 tracking-wide">{account.iban}</p>
-                    </div>
-                    <div className="text-right">
-                        <span className={`text-2xl md:text-3xl font-bold text-gray-800 block ${hideAmounts ? "blur-md select-none" : ""}`}>
-                            {account.balance.toLocaleString('fr-BE', { minimumFractionDigits: 2 })} <span className="text-base text-gray-500">€</span>
-                        </span>
-                        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded mt-2 inline-block">Solde disponible</span>
-                    </div>
+                        <div className="absolute left-0 top-4 bottom-4 w-1 bg-bnp-green rounded-r-full"></div>
+                        <div className="pl-4">
+                            <h3 className="font-bold text-lg text-bnp-green group-hover:underline decoration-2 underline-offset-4">Compte à vue Comfort Pack</h3>
+                            <p className="text-gray-400 text-xs md:text-sm font-mono mt-1 tracking-wide">BE68 7340 1928 4571</p>
+                        </div>
+                        <div className="text-right">
+                            {/* AFFICHAGE DU SOLDE 'balance' (État React) */}
+                            <span className={`text-2xl md:text-3xl font-bold text-gray-800 block ${hideAmounts ? "blur-md select-none" : ""}`}>
+                                {balance.toLocaleString('fr-BE', { minimumFractionDigits: 2 })} <span className="text-base text-gray-500">€</span>
+                            </span>
+                            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded mt-2 inline-block">Solde disponible</span>
+                        </div>
                     </div>
                     <div className="bg-gray-50 px-6 py-3 border-t border-gray-100 flex gap-4 text-xs font-bold text-gray-600">
                         <button className="hover:text-bnp-green transition">HISTORIQUE</button>
                         <button className="hover:text-bnp-green transition">EFFECTUER UN VIREMENT</button>
                     </div>
                 </div>
-                ))}
+
+                {/* 2. Compte Épargne (STATIQUE) */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition cursor-pointer group opacity-80">
+                    <div className="p-6 flex justify-between items-start relative">
+                        <div className="pl-4">
+                            <h3 className="font-bold text-lg text-gray-700">Compte d'épargne Premium</h3>
+                            <p className="text-gray-400 text-xs md:text-sm font-mono mt-1 tracking-wide">BE14 9823 4510 6629</p>
+                        </div>
+                        <div className="text-right">
+                            <span className={`text-2xl md:text-3xl font-bold text-gray-800 block ${hideAmounts ? "blur-md select-none" : ""}`}>
+                                0,00 <span className="text-base text-gray-500">€</span>
+                            </span>
+                            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded mt-2 inline-block">Solde disponible</span>
+                        </div>
+                    </div>
+                </div>
 
                 {/* Banner Pub */}
                 <div className="bg-gradient-to-r from-[#2D2D2D] to-[#404040] rounded-xl p-6 text-white shadow-lg flex items-center justify-between">
@@ -182,7 +198,7 @@ export default function Dashboard() {
                 </div>
              </div>
 
-             {/* COLONNE DROITE : Historique (DATE DYNAMIQUE) */}
+             {/* COLONNE DROITE : Historique (DYNAMIQUE) */}
              <div className="space-y-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
                     <div className="flex justify-between items-center mb-6">
@@ -191,20 +207,22 @@ export default function Dashboard() {
                     </div>
 
                     <div className="space-y-0">
-                    {INITIAL_TRANSACTIONS.map((tx, idx) => (
+                    {/* Boucle sur les transactions dynamiques */}
+                    {transactions.map((tx, idx) => (
                         <div key={idx} className="flex justify-between items-center py-4 border-b border-gray-50 hover:bg-gray-50 px-2 -mx-2 transition rounded border-0">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm border bg-green-50 border-green-100 text-green-600">
-                                💰
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm border ${tx.type === 'debit' ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-green-50 border-green-100 text-green-600'}`}>
+                                {tx.type === 'debit' ? '↗' : '💰'}
                                 </div>
                                 <div>
                                     <p className="font-bold text-sm text-gray-800 line-clamp-1">{tx.merchant}</p>
-                                    {/* DATE DYNAMIQUE ICI */}
-                                    <p className="text-[11px] text-gray-400 font-medium">{shortDate || "..."}</p>
+                                    <p className="text-[11px] text-gray-400 font-medium">
+                                        {tx.date === "15 Déc" ? shortDate : tx.date}
+                                    </p>
                                 </div>
                             </div>
-                            <span className={`font-bold text-sm whitespace-nowrap text-green-600 ${hideAmounts ? "blur-sm" : ""}`}>
-                                + {tx.amount.toLocaleString('fr-BE')} €
+                            <span className={`font-bold text-sm whitespace-nowrap ${tx.type === 'debit' ? 'text-gray-900' : 'text-green-600'} ${hideAmounts ? "blur-sm" : ""}`}>
+                                {tx.type === 'debit' ? '-' : '+'} {tx.amount.toLocaleString('fr-BE')} €
                             </span>
                         </div>
                     ))}
