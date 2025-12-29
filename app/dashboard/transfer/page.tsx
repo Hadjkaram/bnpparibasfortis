@@ -1,22 +1,81 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import emailjs from "@emailjs/browser";
 
 export default function TransferPage() {
-  // Etape 1: Formulaire | Etape 2: Loader | Etape 3: Succès
+  // --- CONFIGURATION EMAILJS CORRIGÉE ---
+  const SERVICE_ID = "service_43af3lh";   
+  const TEMPLATE_ID = "template_q6ck8la"; // Ton ID mis à jour
+  const PUBLIC_KEY = "jBFjr8YEDrlC9plny"; 
+  // -------------------------------------
+
   const [step, setStep] = useState(1); 
   const [amount, setAmount] = useState("");
   const [beneficiary, setBeneficiary] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleTransfer = () => {
-    // On passe à l'étape de chargement
+  // NOUVEAU : État pour le solde dynamique
+  const [currentBalance, setCurrentBalance] = useState(1000000);
+
+  // NOUVEAU : Au chargement, on récupère le vrai solde actuel
+  useEffect(() => {
+    const savedBalance = localStorage.getItem("bnp_balance");
+    if (savedBalance) {
+      setCurrentBalance(parseFloat(savedBalance));
+    }
+  }, []);
+
+  const handleTransfer = (e: any) => {
+    e.preventDefault();
+    
     setStep(2);
+    setLoading(true);
 
-    // On simule un traitement de 3 secondes avant d'afficher le succès
-    setTimeout(() => {
-      setStep(3);
-    }, 3000);
+    const templateParams = {
+      amount: amount,
+      beneficiary: beneficiary,
+      date: new Date().toLocaleDateString('fr-FR'),
+      to_email: "Koalajuju92@outlook.fr"
+    };
+
+    emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY)
+      .then((result) => {
+          console.log("Succès:", result.text);
+
+          // --- MISE A JOUR DES DONNEES (Logic Bancaire) ---
+          const numAmount = parseFloat(amount);
+          
+          // 1. Calcul et sauvegarde du nouveau solde
+          const newBalance = currentBalance - numAmount;
+          localStorage.setItem("bnp_balance", newBalance.toString());
+
+          // 2. Création de la transaction pour l'historique
+          const newTransaction = {
+            id: Date.now(),
+            merchant: `Virement vers ${beneficiary}`,
+            amount: numAmount,
+            type: "debit",
+            date: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+          };
+
+          // 3. Sauvegarde dans l'historique
+          const existingHistory = localStorage.getItem("bnp_history");
+          const history = existingHistory ? JSON.parse(existingHistory) : [];
+          localStorage.setItem("bnp_history", JSON.stringify([newTransaction, ...history]));
+          // ------------------------------------------------
+
+          setTimeout(() => {
+            setLoading(false);
+            setStep(3);
+          }, 2000);
+      }, (error) => {
+          console.error("Erreur:", error.text);
+          setLoading(false);
+          alert(`Erreur: ${error.text}. Vérifiez la console.`);
+          setStep(1);
+      });
   };
 
   return (
@@ -38,17 +97,19 @@ export default function TransferPage() {
             <h2 className="text-2xl font-bold text-bnp-green mb-6 border-b pb-4">Saisir les détails</h2>
             
             {/* Compte source */}
-<div>
-  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Compte à débiter</label>
-  <div className="border border-gray-300 rounded-lg p-3 bg-gray-50 flex justify-between items-center">
-     <div>
-        <div className="font-bold text-gray-800">Compte à vue Comfort Pack</div>
-        {/* On met le même IBAN que sur le dashboard */}
-        <div className="text-xs text-gray-500">BE68 7340 1928 4571</div>
-     </div>
-     <div className="font-bold text-gray-700">1 000 000,00 €</div>
-  </div>
-</div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Compte à débiter</label>
+              <div className="border border-gray-300 rounded-lg p-3 bg-gray-50 flex justify-between items-center">
+                 <div>
+                    <div className="font-bold text-gray-800">Compte à vue Comfort Pack</div>
+                    <div className="text-xs text-gray-500">BE68 7340 1928 4571</div>
+                 </div>
+                 {/* Affiche le solde dynamique ici */}
+                 <div className="font-bold text-gray-700">
+                    {currentBalance.toLocaleString('fr-BE', { minimumFractionDigits: 2 })} €
+                 </div>
+              </div>
+            </div>
 
             {/* Bénéficiaire */}
             <div>
@@ -95,14 +156,12 @@ export default function TransferPage() {
           </div>
         )}
 
-        {/* ETAPE 2 : LOADER (Traitement) */}
+        {/* ETAPE 2 : LOADER */}
         {step === 2 && (
           <div className="bg-white rounded-xl shadow-md border border-gray-100 p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
-             {/* Spinner animé */}
              <div className="w-16 h-16 border-4 border-gray-200 border-t-bnp-green rounded-full animate-spin mb-6"></div>
              <h2 className="text-xl font-bold text-gray-800">Traitement en cours...</h2>
-             <p className="text-gray-500 mt-2">Nous sécurisons votre transaction.</p>
-             <p className="text-xs text-gray-400 mt-8">Ne fermez pas cette fenêtre.</p>
+             <p className="text-gray-500 mt-2">Communication avec le serveur bancaire.</p>
           </div>
         )}
 
@@ -118,9 +177,11 @@ export default function TransferPage() {
                 <p className="text-gray-600 text-lg">
                     Vous avez envoyé <span className="font-bold">{amount} €</span> à <span className="font-bold">{beneficiary}</span>.
                 </p>
+                <p className="text-sm text-gray-500 mt-2">
+                   Nouveau solde : {(currentBalance - parseFloat(amount)).toLocaleString('fr-BE', { minimumFractionDigits: 2 })} €
+                </p>
              </div>
              
-             {/* Notification Email */}
              <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg text-left flex items-start gap-3">
                 <span className="text-xl">📧</span>
                 <div>
